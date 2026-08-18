@@ -1,0 +1,63 @@
+name: Build IG
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    env:
+      IG_DIR: "."  # <-- anpassen: Pfad zum IG root (z.B. "./my-ig" oder ".")
+      JAVA_VERSION: "17"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: ${{ env.IG_DIR }}
+
+      # Optional, falls dein IG Bundler nutzt und im IG_DIR ein Gemfile liegt.
+      # bundler-cache: true oben erledigt normalerweise bundle install.
+
+      - name: Build IG
+        working-directory: ${{ env.IG_DIR }}
+        run: |
+          # Häufige Optionen—wir probieren 3 typische Varianten.
+          # Passe das an deinen echten Command an, sobald du ihn kennst.
+          if [ -f "./publish.sh" ]; then
+            chmod +x ./publish.sh
+            ./publish.sh
+          elif [ -f "./run.sh" ]; then
+            chmod +x ./run.sh
+            ./run.sh
+          elif [ -f "./package.json" ]; then
+            npm ci
+            npm run build
+          else
+            echo "Kein bekanntes Build-Script gefunden. Bitte Build-Command anpassen."
+            ls -la
+            exit 1
+          fi
+
+      - name: Upload HTML output
+        uses: actions/upload-artifact@v4
+        with:
+          name: ig-output
+          path: |
+            ${{ env.IG_DIR }}/output
+            ${{ env.IG_DIR }}/publish  # manche IGs nutzen publish/
+          if-no-files-found: warn
